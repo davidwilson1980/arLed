@@ -1,6 +1,6 @@
-# XLed
+# arLed
 
-XLed is a fork from WLED for ESP-32 arduino modules
+arLed is a fork from WLED for ESP-32 arduino modules
 
 TODO:
 
