@@ -5214,6 +5214,50 @@ void setPalletteIndex(int value) {
   }
 }
 
+/////////////////////////////////////////////////////
+// Custom values and functions for David's effects//
+/////////////////////////////////////////////////////
+
+uint8_t oldPaletteColorIndex = 1;
+
+//////////////////////////////////
+//   * GOVEE LIKE AMP BLEND     //
+//////////////////////////////////
+
+uint16_t WS2812FX::mode_blend(void){                                                        //Govee Like Amp BLEND by David Wilson
+
+uint8_t fadeHelper = SEGMENT.intensity;
+
+
+if (fadeHelper == 0){
+  fadeHelper = 1;
+}
+uint16_t fadeRate = 2*fadeHelper - fadeHelper*fadeHelper/255;     
+                        // Fade out rate.
+fade_out(fadeRate); //fade out 
+EVERY_N_SECONDS(5) {                       
+      oldPaletteColorIndex = paletteColorIndex;
+      paletteColorIndex = random8();
+      Serial.print("Color Index: "); Serial.println(paletteColorIndex);
+}
+
+int samplePixCount = map(sampleAvg, 0,255,0,SEGLEN/2);                                     //map the sampleAvg to the length of the strip (segment) divided by 2 to start in the middle
+
+for (int i=SEGLEN/2; i<(SEGLEN/2)+samplePixCount; i++){
+
+  setPixelColor(i, color_blend(color_from_palette(oldPaletteColorIndex, false, PALETTE_SOLID_WRAP, 0), color_from_palette(paletteColorIndex, false, PALETTE_SOLID_WRAP, 0), getBrightness()));
+  //blend old and new color to make smoother transitions
+}
+
+for (int i=SEGLEN/2; i>(SEGLEN/2)-samplePixCount; i--){
+  setPixelColor(i, color_blend(color_from_palette(oldPaletteColorIndex, false, PALETTE_SOLID_WRAP, 0), color_from_palette(paletteColorIndex, false, PALETTE_SOLID_WRAP, 0), getBrightness()));
+  //blend old and new color to make smoother transitions
+}
+
+  return FRAMETIME;
+ 
+} //mode govee_blend()
+
 //////////////////////
 //** BLINK ON BEAT  //
 //////////////////////
