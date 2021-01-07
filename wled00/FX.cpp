@@ -5220,11 +5220,11 @@ void setPalletteIndex(int value) {
 
 uint8_t oldPaletteColorIndex = 1;
 
-//////////////////////////////////
-//   * GOVEE LIKE AMP BLEND     //
-//////////////////////////////////
+/////////////////
+//   * BLEND  //
+////////////////
 
-uint16_t WS2812FX::mode_blend(void){                                                        //Govee Like Amp BLEND by David Wilson
+uint16_t WS2812FX::mode_blend(void){                                                        //BLEND by David Wilson
 
 uint8_t fadeHelper = SEGMENT.intensity;
 

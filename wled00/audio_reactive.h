@@ -53,7 +53,7 @@ int micIn;                                          // Current sample starts wit
 int sample;                                         // Current sample
 float sampleAvg = 0;                                // Smoothed Average
 float micLev = 0;                                   // Used to convert returned value to have '0' as minimum. A leveller
-uint8_t maxVol = 6;                                // Reasonable value for constant volume for 'peak detector', as it won't always trigger
+uint8_t maxVol = 6;                                 // Reasonable value for constant volume for 'peak detector', as it won't always trigger
 bool samplePeak = 0;                                // Boolean flag for peak. Responding routine must reset this flag
 int sampleAdj;                                      // Gain adjusted sample value.
 #ifdef ESP32                                        // Transmitting doesn't work on ESP8266, don't bother allocating memory
@@ -301,9 +301,9 @@ void agcAvg() {                                                     // A simple 
       fftCalc[15] = (fftAdd(194, 255)) /62; // 3880 - 5120 -> 4500,  5000
 
       for(int i=0; i< 16; i++) {
-        if(fftCalc[i]<0) fftCalc[i]=0;
+        //if(fftCalc[i]<0) fftCalc[i]=0;
         avgChannel[i] = ((avgChannel[i] * 31) + fftCalc[i]) / 32;                         // Smoothing of each result bin. Experimental.
-        fftResult[i] = map(fftCalc[i], 0,  maxChannel[i], 0, 255);     // Map result bin to 8 bits.
+        fftResult[i] = map(abs(fftCalc[i]), 0,  maxChannel[i], 0, 255);     // Map result bin to 8 bits.
       //fftResult[i] = constrain(map(fftResult[i], 0,  avgChannel[i]*2, 0, 255),0,255);     // AGC map result bin to 8 bits. Can be noisy at low volumes. Experimental.
 
       }
@@ -336,7 +336,7 @@ void logAudio() {
 
 #ifdef FFT_SAMPLING_LOG
     for(int i=0; i<16; i++) {
-      Serial.print((int)constrain(fftResult[i],0,254));
+      Serial.print(fftCalc[i]);
       Serial.print(" ");
     }
     Serial.println("");
