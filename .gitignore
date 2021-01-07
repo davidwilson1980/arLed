@@ -1,0 +1,17 @@
+.pio
+.vscode
+/build_output
+.cache
+.pioenvs
+.piolibdeps
+/build_output
+!.vscode/extensions.json
+/wled00/Release
+/wled00/extLibs
+/platformio_override.ini
+/wled00/my_config.h 
+.DS_Store
+.clang-format
+node_modules
+.cproject
+.project
