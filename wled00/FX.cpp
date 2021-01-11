@@ -5383,12 +5383,12 @@ bass = bass + fftResult[i];
 }
 bass = bass / 6;
 Serial.print("Bass avg no constraint: ");Serial.println(bass);
-bass = constrain(bass,0,2500);
+bass = map(bass,0,FFT_Magnitude,0,255);
 Serial.print("Bass avg: ");Serial.println(bass);
 
 
 //int samplePixCount = map(bass, 0,2500,0,SEGLEN/2);                                     //map the sampleAvg to the length of the strip (segment) divided by 2 to start in the middle
-int samplePixCount = map(getFilteredBeat(SEGMENT.fft3,3),0,255,0,SEGLEN/2);
+int samplePixCount = map(bass,0,255,0,SEGLEN/2);
 
 for (int i=SEGLEN/2; i<(SEGLEN/2)+samplePixCount; i++){
 
