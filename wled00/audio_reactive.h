@@ -302,7 +302,7 @@ void agcAvg() {                                                     // A simple 
       fftCalc[15] = (fftAdd(194, 255)) /62; // 3880 - 5120 -> 4500,  5000
 
       for(int i=0; i< 16; i++) {
-        //if(fftCalc[i]<0) fftCalc[i]=0;
+        if(fftCalc[i]<0) fftCalc[i]=0;
         avgChannel[i] = ((avgChannel[i] * 31) + fftCalc[i]) / 32;                           // Smoothing of each result bin. Experimental.
         //fftCalc[i] = map(fftCalc[i], 0,  maxChannel[i], 0, 255);                            
         fftResult[i] = fftCalc[i];                                                                        

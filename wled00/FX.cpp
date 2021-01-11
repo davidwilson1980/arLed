@@ -4395,7 +4395,7 @@ uint16_t WS2812FX::mode_freqwave(void) {          // Freqwave. By Andreas Plesch
 
     CRGB color = 0;
     CHSV c;
-
+    Serial.println(FFT_MajorPeak);
     if (FFT_MajorPeak > 5120) FFT_MajorPeak = 0;
       // MajorPeak holds the freq. value which is most abundant in the last sample.
       // With our sampling rate of 10240Hz we have a usable freq range from roughtly 80Hz to 10240/2 Hz
@@ -5374,7 +5374,7 @@ EVERY_N_SECONDS(5) {
       oldPaletteColorIndex = paletteColorIndex;
       paletteColorIndex = random8();
 }
-/*
+
 for (uint8_t i=0; i<6; i++ ){
   if (fftResult[i] < 0){
     fftResult[i] = 0;
@@ -5385,7 +5385,7 @@ bass = bass / 6;
 Serial.print("Bass avg no constraint: ");Serial.println(bass);
 bass = constrain(bass,0,2500);
 Serial.print("Bass avg: ");Serial.println(bass);
-*/
+
 
 //int samplePixCount = map(bass, 0,2500,0,SEGLEN/2);                                     //map the sampleAvg to the length of the strip (segment) divided by 2 to start in the middle
 int samplePixCount = map(getFilteredBeat(SEGMENT.fft3,3),0,255,0,SEGLEN/2);
