@@ -4123,7 +4123,8 @@ uint16_t WS2812FX::mode_ripplepeak(void) {                    // * Ripple peak. 
 extern double FFT_MajorPeak;
 extern double FFT_Magnitude;
 extern double fftBin[];                     // raw FFT data
-extern double fftResult[];                  // summary of bins array. 16 summary bins.
+extern double fftResult[];     
+extern double fftCalc[];             // summary of bins array. 16 summary bins.
 extern double beat;
 extern uint16_t lastSample;
 double volume = 1;
@@ -4242,11 +4243,15 @@ uint16_t WS2812FX::fft_test() {
     }
     Serial.println(" ");
 */
+ 
  for(int i = 0; i < 16; i++) {
     Serial.print(fftResult[i]); Serial.print(" ");
+    Serial.print("\t");
   }
-    Serial.println(" ");
+  Serial.println();
 
+  //  Serial.print("Magintude: "); Serial.println(int(FFT_Magnitude)>>8);
+  //  Serial.print("Peak: "); Serial.println(FFT_MajorPeak);
 
 #else
   fade_out(224);
@@ -5276,9 +5281,9 @@ uint16_t WS2812FX::mode_blinkonbeat(void) {
 
 
 
-//////////////////////
-//beatwavefrommiddel//
-//////////////////////
+//////////////////////////
+//** beatwavefrommiddle//
+/////////////////////////
 
 uint16_t WS2812FX::mode_beatwavefrommiddel(void) {
   // beatwavefrommiddel. By Maxime Huylebroeck.
@@ -5317,7 +5322,7 @@ uint16_t WS2812FX::mode_beatwavefrommiddel(void) {
   }
 
   return FRAMETIME;
-} // beatwavefrommiddel()
+} // beatwavefrommiddle()
 
 
 //////////////////////
@@ -5348,3 +5353,54 @@ uint16_t WS2812FX::mode_energy(void) {
 
   return FRAMETIME;
 } // mode_energy()
+
+///////////////////////////
+//   ** BASS FROM MIDDLE  //
+///////////////////////////
+
+uint16_t WS2812FX::mode_bassFromMiddle(void){                                                  // Bass From Middle FFT by David Wilson
+
+uint8_t fadeHelper = SEGMENT.intensity;
+uint16_t bass = 0;
+
+if (fadeHelper == 0){
+  fadeHelper = 1;
+}
+//Serial.print("Fade helper: "); Serial.println(fadeHelper);
+uint16_t fadeRate = 2*fadeHelper - fadeHelper*fadeHelper/255;                             // Fade out rate.
+//Serial.print("fadeRate: ");Serial.println(fadeRate);
+fade_out(fadeRate); //fade out 
+EVERY_N_SECONDS(5) {                       
+      oldPaletteColorIndex = paletteColorIndex;
+      paletteColorIndex = random8();
+}
+/*
+for (uint8_t i=0; i<6; i++ ){
+  if (fftResult[i] < 0){
+    fftResult[i] = 0;
+  }
+bass = bass + fftResult[i];
+}
+bass = bass / 6;
+Serial.print("Bass avg no constraint: ");Serial.println(bass);
+bass = constrain(bass,0,2500);
+Serial.print("Bass avg: ");Serial.println(bass);
+*/
+
+//int samplePixCount = map(bass, 0,2500,0,SEGLEN/2);                                     //map the sampleAvg to the length of the strip (segment) divided by 2 to start in the middle
+int samplePixCount = map(getFilteredBeat(SEGMENT.fft3,3),0,255,0,SEGLEN/2);
+
+for (int i=SEGLEN/2; i<(SEGLEN/2)+samplePixCount; i++){
+
+  setPixelColor(i, color_blend(SEGCOLOR(1), color_from_palette(paletteColorIndex, false, PALETTE_SOLID_WRAP, 0), getBrightness()));
+  //blend old and new color to make smoother transitions
+}
+
+for (int i=SEGLEN/2; i>(SEGLEN/2)-samplePixCount; i--){
+  setPixelColor(i, color_blend(SEGCOLOR(1), color_from_palette(paletteColorIndex, false, PALETTE_SOLID_WRAP, 0), getBrightness()));
+  //blend old and new color to make smoother transitions
+}
+
+  return FRAMETIME;
+ 
+} //mode_bassFromMiddle()
