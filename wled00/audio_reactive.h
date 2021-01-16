@@ -212,7 +212,7 @@ void agcAvg() {                                                     // A simple 
   // This is used for normalization of the result bins. It was created by sending the results of a signal generator to within 6" of a MAX9814 @ 40db gain.
   // This is the maximum raw results for each of the result bins and is used for normalization of the results.
   long maxChannel[] = {26000,  44000,  66000,  72000,  60000,  48000,  41000,  30000,  25000, 22000, 16000,  14000,  10000,  8000,  7000,  5000}; // Find maximum value for each bin with MAX9814 @ 40db gain.
-
+  int noise[] = {712,1000,1000,161,19,260,126,259,99,953,0,0,0,0,0,0};   //noise per bin is calculated by testing in a "silent" environment.
   float avgChannel[16];    // This is a smoothed rolling average value for each bin. Experimental for AGC testing.
 
   // Create FFT object
@@ -302,16 +302,19 @@ void agcAvg() {                                                     // A simple 
       fftCalc[15] = (fftAdd(194, 255)) /62; // 3880 - 5120 -> 4500,  5000
 
       for(int i=0; i< 16; i++) {
+        fftCalc[i] = fftCalc[i] - noise[i];
         if (fftCalc[i] < 0) fftCalc[i] = 0;
       //  fftCalc[i] = constrain(fftCalc[i],0,maxChannel[i]);
       //  Serial.print("fftCalc: ");Serial.println(fftCalc[i]);
       //
+      
         uint8_t tempFftCalc = fftCalc[i];
         uint8_t tempMaxCh = maxChannel[i];
         tempFftCalc = constrain(tempFftCalc, 0, tempMaxCh);
         fftCalc[i] = map(tempFftCalc,0,tempMaxCh,0,255);
         avgChannel[i] = ((avgChannel[i] * 31) + fftCalc[i]) / 32;                           // Smoothing of each result bin. Experimental.
-        //fftCalc[i] = map(fftCalc[i], 0,  maxChannel[i], 0, 255);                            
+        //fftCalc[i] = map(fftCalc[i], 0,  maxChannel[i], 0, 255);      
+                            
         fftResult[i] = fftCalc[i];                                                                        
 
       }
