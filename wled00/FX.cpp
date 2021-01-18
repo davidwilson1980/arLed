@@ -5224,12 +5224,31 @@ void setPalletteIndex(int value) {
 /////////////////////////////////////////////////////
 
 uint8_t oldPaletteColorIndex = 1;
+uint8_t prevFftValue[16];
+bool prevPresent;
+int prevLowValue;
 
 int closestNumber(int n, int m){
   int q = n / m;
   int n1 = m * q;
 
 return n1;
+}
+
+uint8_t getPrevFftValue (int i){
+  return prevFftValue[i];
+}
+
+void setPrevFftValue (uint8_t fftValue, uint8_t binNumber){
+  prevFftValue[binNumber] = fftResult[binNumber];
+}
+
+uint8_t getPrevLowValue (){
+  return prevLowValue;
+}
+
+void setPrevLowValue (int lowValue) {
+  prevLowValue = lowValue;
 }
 
 /////////////////
@@ -5369,12 +5388,18 @@ uint16_t WS2812FX::mode_bassFromMiddle(void){                                   
 
 uint8_t fadeHelper = SEGMENT.intensity;
 
+
+if (prevPresent != 1) {
+  prevPresent = 0;
+}
+
 if (fadeHelper == 0){
   fadeHelper = 1;
 }
-//Serial.print("Fade helper: "); Serial.println(fadeHelper);
+Serial.print("Fade helper: "); Serial.println(fadeHelper);
 
 fade_out(fadeHelper); //fade out 
+
 EVERY_N_SECONDS(5) {                       
       oldPaletteColorIndex = paletteColorIndex;
       paletteColorIndex = random8();
@@ -5389,9 +5414,12 @@ uint8_t nrRestLeds = SEGLEN/2 - closestNumber(SEGLEN/2,7);
 
 //First 6 bins (1-6) -> take the average of these to get brightness of the first part of the led strip ((SEGLEN/2)*6)
 int lowCalc = 0;
+
+
 for(byte i=0;i<=6;i++){
   lowCalc= lowCalc + fftResult[i];
 }
+
 lowCalc = lowCalc / 7;
 Serial.print("Low freq val: ");Serial.println(lowCalc);
 
@@ -5410,14 +5438,24 @@ stopRight = (SEGLEN/2)+samplePixCount;
 startLeft = SEGLEN/2;
 stopLeft = (SEGLEN/2)-samplePixCount;
 
-for (int i=startRight; i<=stopRight; i++){
-  setPixelColor(i, color_blend(SEGCOLOR(1), color_from_palette(paletteColorIndex, false, PALETTE_SOLID_WRAP, 0), lowCalc));
-  //blend old and new color to make smoother transitions
-}
-for (int i=startLeft; i>=stopLeft; i--){
-  setPixelColor(i, color_blend(SEGCOLOR(1), color_from_palette(paletteColorIndex, false, PALETTE_SOLID_WRAP, 0), lowCalc));
-  //blend old and new color to make smoother transitions
-}         
+setRange(startRight, stopRight, color_blend(SEGCOLOR(1), color_from_palette(paletteColorIndex, false, PALETTE_SOLID_WRAP, 0), lowCalc));
+setRange(startLeft, stopLeft, color_blend(SEGCOLOR(1), color_from_palette(paletteColorIndex, false, PALETTE_SOLID_WRAP, 0), lowCalc));
+  
+ 
+  /*
+  if (prevPresent && (getPrevLowValue() <= lowCalc)){
+  for (int i=startRight; i<=stopRight; i++){
+
+    setPixelColor(i, color_blend(SEGCOLOR(1), color_from_palette(paletteColorIndex, false, PALETTE_SOLID_WRAP, 0), lowCalc));
+    //blend old and new color to make smoother transitions
+  }
+  for (int i=startLeft; i>=stopLeft; i--){
+    setPixelColor(i, color_blend(SEGCOLOR(1), color_from_palette(paletteColorIndex, false, PALETTE_SOLID_WRAP, 0), lowCalc));
+    //blend old and new color to make smoother transitions
+  }
+  }     
+  */
+    
 
 startRight = (SEGLEN/2)+samplePixCount+1;
 stopRight = (SEGLEN/2)+samplePixCount+partCount;
@@ -5431,16 +5469,22 @@ Serial.print("Stop right: ");Serial.println((SEGLEN/2)+samplePixCount+partCount)
 Serial.print("Start left: ");Serial.println((SEGLEN/2)-samplePixCount-1);
 Serial.print("Stop left: ");Serial.println((SEGLEN/2)-samplePixCount-partCount);
 
+setRange(startRight, stopRight, color_blend(SEGCOLOR(1), color_from_palette(paletteColorIndex, false, PALETTE_SOLID_WRAP, 0), fftResult[7]));
+setRange(startLeft, stopLeft, color_blend(SEGCOLOR(1), color_from_palette(paletteColorIndex, false, PALETTE_SOLID_WRAP, 0), fftResult[7]));
 
-for (int i=startRight; i<=stopRight; i++){
-  setPixelColor(i, color_blend(SEGCOLOR(1), color_from_palette(paletteColorIndex, false, PALETTE_SOLID_WRAP, 0), fftResult[7]));
-  //blend old and new color to make smoother transitions
-}
+/*
+if(prevPresent && (getPrevFftValue(7) <= fftResult[7])){
+  for (int i=startRight; i<=stopRight; i++){
+    setPixelColor(i, color_blend(SEGCOLOR(1), color_from_palette(paletteColorIndex, false, PALETTE_SOLID_WRAP, 0), fftResult[7]));
+    //blend old and new color to make smoother transitions
+  }
 
-for (int i=startRight; i>=stopRight; i--){
-  setPixelColor(i, color_blend(SEGCOLOR(1), color_from_palette(paletteColorIndex, false, PALETTE_SOLID_WRAP, 0), fftResult[7]));
-  //blend old and new color to make smoother transitions
-}       
+  for (int i=startRight; i>=stopRight; i--){
+    setPixelColor(i, color_blend(SEGCOLOR(1), color_from_palette(paletteColorIndex, false, PALETTE_SOLID_WRAP, 0), fftResult[7]));
+    //blend old and new color to make smoother transitions
+  }
+}  
+*/     
 
 startRight = (SEGLEN/2)+samplePixCount+partCount+1;
 stopRight = (SEGLEN/2)+samplePixCount+(partCount*2);
@@ -5455,15 +5499,22 @@ Serial.print("Stop right: ");Serial.println((SEGLEN/2)+samplePixCount+(partCount
 Serial.print("Start left: ");Serial.println((SEGLEN/2)-samplePixCount-partCount-1);
 Serial.print("Stop left: ");Serial.println((SEGLEN/2)-samplePixCount-(partCount*2));
 
-for (int i=startRight; i<=stopRight; i++){
-  setPixelColor(i, color_blend(SEGCOLOR(1), color_from_palette(paletteColorIndex, false, PALETTE_SOLID_WRAP, 0), fftResult[8]));
-  //blend old and new color to make smoother transitions
-}
+setRange(startRight, stopRight, color_blend(SEGCOLOR(1), color_from_palette(paletteColorIndex, false, PALETTE_SOLID_WRAP, 0), fftResult[8]));
+setRange(startLeft, stopLeft, color_blend(SEGCOLOR(1), color_from_palette(paletteColorIndex, false, PALETTE_SOLID_WRAP, 0), fftResult[8]));
 
-for (int i=startLeft; i>=stopLeft; i--){
-  setPixelColor(i, color_blend(SEGCOLOR(1), color_from_palette(paletteColorIndex, false, PALETTE_SOLID_WRAP, 0), fftResult[8]));
-  //blend old and new color to make smoother transitions
+/*
+if(prevPresent && (getPrevFftValue(8) <= fftResult[8]) ){
+  for (int i=startRight; i<=stopRight; i++){
+    setPixelColor(i, color_blend(SEGCOLOR(1), color_from_palette(paletteColorIndex, false, PALETTE_SOLID_WRAP, 0), fftResult[8]));
+    //blend old and new color to make smoother transitions
+  }
+
+  for (int i=startLeft; i>=stopLeft; i--){
+    setPixelColor(i, color_blend(SEGCOLOR(1), color_from_palette(paletteColorIndex, false, PALETTE_SOLID_WRAP, 0), fftResult[8]));
+    //blend old and new color to make smoother transitions
+  }
 }    
+*/
 
 startRight = (SEGLEN/2)+samplePixCount+(partCount*2)+1;;
 stopRight = (SEGLEN/2)+samplePixCount+(partCount*3);
@@ -5478,15 +5529,22 @@ Serial.print("Stop right: ");Serial.println((SEGLEN/2)+samplePixCount+(partCount
 Serial.print("Start left: ");Serial.println((SEGLEN/2)-samplePixCount-(partCount*2)-1);
 Serial.print("Stop left: ");Serial.println((SEGLEN/2)-samplePixCount-(partCount*3));
 
-for (int i=startRight; i<=stopRight; i++){
-  setPixelColor(i, color_blend(SEGCOLOR(1), color_from_palette(paletteColorIndex, false, PALETTE_SOLID_WRAP, 0), fftResult[9]));
-  //blend old and new color to make smoother transitions
-}
+setRange(startRight, stopRight, color_blend(SEGCOLOR(1), color_from_palette(paletteColorIndex, false, PALETTE_SOLID_WRAP, 0), fftResult[9]));
+setRange(startLeft, stopLeft, color_blend(SEGCOLOR(1), color_from_palette(paletteColorIndex, false, PALETTE_SOLID_WRAP, 0), fftResult[9]));
 
-for (int i=startLeft;i>=stopLeft; i--){
-  setPixelColor(i, color_blend(SEGCOLOR(1), color_from_palette(paletteColorIndex, false, PALETTE_SOLID_WRAP, 0), fftResult[9]));
-  //blend old and new color to make smoother transitions
+/*
+if(prevPresent && (getPrevFftValue(9) <= fftResult[9]) ){
+  for (int i=startRight; i<=stopRight; i++){
+    setPixelColor(i, color_blend(SEGCOLOR(1), color_from_palette(paletteColorIndex, false, PALETTE_SOLID_WRAP, 0), fftResult[9]));
+    //blend old and new color to make smoother transitions
+  }
+
+  for (int i=startLeft;i>=stopLeft; i--){
+    setPixelColor(i, color_blend(SEGCOLOR(1), color_from_palette(paletteColorIndex, false, PALETTE_SOLID_WRAP, 0), fftResult[9]));
+    //blend old and new color to make smoother transitions
+  }
 }   
+*/
 
 startRight = (SEGLEN/2)+samplePixCount+(partCount*3)+1;;
 stopRight = (SEGLEN/2)+samplePixCount+(partCount*4);
@@ -5494,16 +5552,21 @@ startLeft = (SEGLEN/2)-samplePixCount-(partCount*3)-1;
 stopLeft = (SEGLEN/2)-samplePixCount-(partCount*4);
 
 //Segment 5, bin 10
+setRange(startRight, stopRight, color_blend(SEGCOLOR(1), color_from_palette(paletteColorIndex, false, PALETTE_SOLID_WRAP, 0), fftResult[10]));
+setRange(startLeft, stopLeft, color_blend(SEGCOLOR(1), color_from_palette(paletteColorIndex, false, PALETTE_SOLID_WRAP, 0), fftResult[10]));
+/*
+if(prevPresent && (getPrevFftValue(10) <= fftResult[10]) ){
+  for (int i=startRight; i<=stopRight; i++){
+    setPixelColor(i, color_blend(SEGCOLOR(1), color_from_palette(paletteColorIndex, false, PALETTE_SOLID_WRAP, 0), fftResult[10]));
+    //blend old and new color to make smoother transitions
+  }
 
-for (int i=startRight; i<=stopRight; i++){
-  setPixelColor(i, color_blend(SEGCOLOR(1), color_from_palette(paletteColorIndex, false, PALETTE_SOLID_WRAP, 0), fftResult[10]));
-  //blend old and new color to make smoother transitions
+  for (int i=startLeft; i>=stopLeft; i--){
+    setPixelColor(i, color_blend(SEGCOLOR(1), color_from_palette(paletteColorIndex, false, PALETTE_SOLID_WRAP, 0), fftResult[10]));
+    //blend old and new color to make smoother transitions
+  }   
 }
-
-for (int i=startLeft; i>=stopLeft; i--){
-  setPixelColor(i, color_blend(SEGCOLOR(1), color_from_palette(paletteColorIndex, false, PALETTE_SOLID_WRAP, 0), fftResult[10]));
-  //blend old and new color to make smoother transitions
-}   
+*/
 
 startRight = (SEGLEN/2)+samplePixCount+(partCount*4)+1;;
 stopRight = (SEGLEN/2)+samplePixCount+(partCount*5);
@@ -5512,15 +5575,22 @@ stopLeft = (SEGLEN/2)-samplePixCount-(partCount*5);
 
 //segment 6, bin 11
 
-for (int i=startRight; i<=stopRight; i++){
-  setPixelColor(i, color_blend(SEGCOLOR(1), color_from_palette(paletteColorIndex, false, PALETTE_SOLID_WRAP, 0), fftResult[11]));
-  //blend old and new color to make smoother transitions
-}
+setRange(startRight, stopRight, color_blend(SEGCOLOR(1), color_from_palette(paletteColorIndex, false, PALETTE_SOLID_WRAP, 0), fftResult[11]));
+setRange(startLeft, stopLeft, color_blend(SEGCOLOR(1), color_from_palette(paletteColorIndex, false, PALETTE_SOLID_WRAP, 0), fftResult[11]));
 
-for (int i=startLeft; i>=stopLeft; i--){
-  setPixelColor(i, color_blend(SEGCOLOR(1), color_from_palette(paletteColorIndex, false, PALETTE_SOLID_WRAP, 0), fftResult[11]));
-  //blend old and new color to make smoother transitions
-}   
+/*
+if(prevPresent && (getPrevFftValue(11) <= fftResult[11]) ){
+  for (int i=startRight; i<=stopRight; i++){
+    setPixelColor(i, color_blend(SEGCOLOR(1), color_from_palette(paletteColorIndex, false, PALETTE_SOLID_WRAP, 0), fftResult[11]));
+    //blend old and new color to make smoother transitions
+  }
+
+  for (int i=startLeft; i>=stopLeft; i--){
+    setPixelColor(i, color_blend(SEGCOLOR(1), color_from_palette(paletteColorIndex, false, PALETTE_SOLID_WRAP, 0), fftResult[11]));
+    //blend old and new color to make smoother transitions
+  }
+}  
+*/ 
 
 startRight = (SEGLEN/2)+samplePixCount+(partCount*5)+1;;
 stopRight = (SEGLEN/2)+samplePixCount+(partCount*6);
@@ -5528,17 +5598,30 @@ startLeft = (SEGLEN/2)-samplePixCount-(partCount*5)-1;
 stopLeft = (SEGLEN/2)-samplePixCount-(partCount*6);
 
 //segment 7, bin 12
+setRange(startRight, stopRight, color_blend(SEGCOLOR(1), color_from_palette(paletteColorIndex, false, PALETTE_SOLID_WRAP, 0), fftResult[11]));
+setRange(startLeft, stopLeft, color_blend(SEGCOLOR(1), color_from_palette(paletteColorIndex, false, PALETTE_SOLID_WRAP, 0), fftResult[11]));
 
-for (int i=startRight; i<=stopRight; i++){
-  setPixelColor(i, color_blend(SEGCOLOR(1), color_from_palette(paletteColorIndex, false, PALETTE_SOLID_WRAP, 0), fftResult[11]));
-  //blend old and new color to make smoother transitions
+/*
+if(prevPresent && (getPrevFftValue(11) <= fftResult[11]) ) {
+  for (int i=startRight; i<=stopRight; i++){
+    setPixelColor(i, color_blend(SEGCOLOR(1), color_from_palette(paletteColorIndex, false, PALETTE_SOLID_WRAP, 0), fftResult[11]));
+    //blend old and new color to make smoother transitions
+  }
+
+  for (int i=startLeft; i>=stopLeft; i--){
+    setPixelColor(i, color_blend(SEGCOLOR(1), color_from_palette(paletteColorIndex, false, PALETTE_SOLID_WRAP, 0), fftResult[11]));
+    //blend old and new color to make smoother transitions
+  }   
+}
+*/
+
+for (uint8_t i = 0 ; i <= 11; i++){
+  setPrevFftValue(fftResult[i],i);
 }
 
-for (int i=startLeft; i>=stopLeft; i--){
-  setPixelColor(i, color_blend(SEGCOLOR(1), color_from_palette(paletteColorIndex, false, PALETTE_SOLID_WRAP, 0), fftResult[11]));
-  //blend old and new color to make smoother transitions
-}   
+setPrevLowValue(lowCalc);
 
+prevPresent = 1;
   return FRAMETIME;
  
 } //mode_bassFromMiddle()

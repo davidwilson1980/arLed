@@ -566,6 +566,8 @@ void WS2812FX::setPixelSegment(uint8_t n)
   }
 }
 
+
+
 void WS2812FX::setRange(uint16_t i, uint16_t i2, uint32_t col)
 {
   if (i2 >= i)
