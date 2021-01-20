@@ -119,7 +119,7 @@
 #define IS_REVERSE      ((SEGMENT.options & REVERSE     ) == REVERSE     )
 #define IS_SELECTED     ((SEGMENT.options & SELECTED    ) == SELECTED    )
 
-#define MODE_COUNT                     147
+#define MODE_COUNT                     149
 
 #define FX_MODE_STATIC                   0
 #define FX_MODE_BLINK                    1
@@ -268,7 +268,8 @@
 #define FX_MODE_BEAT_WAVE_FROM_MIDDLE  144
 #define FX_MODE_ENERGY                 145
 #define FX_MODE_BLEND                  146
-
+#define FX_MODE_BASS_FROM_MIDDLE       147
+#define FX_MODE_ALL_OVER               148
 
 // Sound reactive external variables
 extern int sample;
@@ -518,6 +519,8 @@ class WS2812FX {
       _mode[FX_MODE_BEAT_WAVE_FROM_MIDDLE]   = &WS2812FX::mode_beatwavefrommiddel;
       _mode[FX_MODE_ENERGY]                  = &WS2812FX::mode_energy;
       _mode[FX_MODE_BLEND]                   = &WS2812FX::mode_blend;
+      _mode[FX_MODE_BASS_FROM_MIDDLE]        = &WS2812FX::mode_bassFromMiddle;
+      _mode[FX_MODE_ALL_OVER]                = &WS2812FX::mode_allOver;
 
       _brightness = DEFAULT_BRIGHTNESS;
       currentPalette = CRGBPalette16(CRGB::Black);
@@ -536,6 +539,8 @@ class WS2812FX {
       fill(uint32_t),
       fade_out(uint8_t r),
       fade2black(uint8_t r),
+      fade2black_custom(int s, int st, uint8_t r),
+      fade_out_custom(int s, int st, uint8_t r),
       setMode(uint8_t segid, uint8_t m),
       setColor(uint8_t slot, uint8_t r, uint8_t g, uint8_t b, uint8_t w = 0),
       setColor(uint8_t slot, uint32_t c),
@@ -772,7 +777,9 @@ class WS2812FX {
       mode_blinkonbeat(void),
       mode_beatwavefrommiddel(void),
       mode_energy(void),
-      mode_blend(void);
+      mode_blend(void),
+      mode_bassFromMiddle(void),
+      mode_allOver(void);
 
   private:
     NeoPixelWrapper *bus;
@@ -863,7 +870,8 @@ const char JSON_mode_names[] PROGMEM = R"=====([
 "Flow","Chunchun","Dancing Shadows","Washing Machine","* Pixels","* Pixelwave","* Juggles","* Matripix","* Gravimeter","* Plasmoid",
 "* Puddles","* Midnoise","* Noisemeter","** Freqwave","** Freqmatrix","** Spectral","* Waterfall","** Freqpixel","** Binmap","** Noisepeak",
 "* Noisefire","* Puddlepeak","** Noisemove","2D Plasma","Perlin Move","* Ripple Peak","2D FireNoise","2D Squared Swirl","2D Fire2012","2D DNA",
-"2D Matrix","2D Meatballs","** FFT_TEST","** Blink On Beat","** Beat Wave From Middel", "** Energy", "** Blend"
+"2D Matrix","2D Meatballs","** FFT_TEST","** Blink On Beat","** Beat Wave From Middle", "** Energy", "* Blend", 
+"** Bass In The Middle", "** All Over"
 ])=====";
 
 
