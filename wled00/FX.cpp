@@ -4123,7 +4123,8 @@ uint16_t WS2812FX::mode_ripplepeak(void) {                    // * Ripple peak. 
 extern double FFT_MajorPeak;
 extern double FFT_Magnitude;
 extern double fftBin[];                     // raw FFT data
-extern double fftResult[];                  // summary of bins array. 16 summary bins.
+extern double fftResult[];     
+extern double fftCalc[];             // summary of bins array. 16 summary bins.
 extern double beat;
 extern uint16_t lastSample;
 double volume = 1;
@@ -4219,7 +4220,8 @@ uint16_t WS2812FX::mode_binmap(void) {        // Binmap. Scale bins to SEGLEN. B
   return FRAMETIME;
 } // mode_binmap()
 
-
+double fftMagnitude = 0;
+int fftMax[16];
 ////////////////////////////////
 //  ** FFT test  by Yariv-H   //
 ////////////////////////////////
@@ -4242,11 +4244,14 @@ uint16_t WS2812FX::fft_test() {
     }
     Serial.println(" ");
 */
- for(int i = 0; i < 16; i++) {
-    Serial.print(fftResult[i]); Serial.print(" ");
-  }
-    Serial.println(" ");
+ 
+for(int i = 0; i < 16; i++) {
 
+ Serial.print("fftResult "); Serial.print(i); Serial.print(" : "); Serial.print(fftResult[i]);Serial.print("\t");
+ Serial.println();
+}
+  // Serial.print("Magintude: "); Serial.println(int(FFT_Magnitude)>>8);
+  //  Serial.print("Peak: "); Serial.println(FFT_MajorPeak);
 
 #else
   fade_out(224);
@@ -4390,7 +4395,7 @@ uint16_t WS2812FX::mode_freqwave(void) {          // Freqwave. By Andreas Plesch
 
     CRGB color = 0;
     CHSV c;
-
+    Serial.println(FFT_MajorPeak);
     if (FFT_MajorPeak > 5120) FFT_MajorPeak = 0;
       // MajorPeak holds the freq. value which is most abundant in the last sample.
       // With our sampling rate of 10240Hz we have a usable freq range from roughtly 80Hz to 10240/2 Hz
@@ -5219,6 +5224,32 @@ void setPalletteIndex(int value) {
 /////////////////////////////////////////////////////
 
 uint8_t oldPaletteColorIndex = 1;
+uint8_t prevFftValue[16];
+bool prevPresent;
+int prevLowValue;
+
+int closestNumber(int n, int m){
+  int q = n / m;
+  int n1 = m * q;
+
+return n1;
+}
+
+uint8_t getPrevFftValue (int i){
+  return prevFftValue[i];
+}
+
+void setPrevFftValue (uint8_t fftValue, uint8_t binNumber){
+  prevFftValue[binNumber] = fftResult[binNumber];
+}
+
+uint8_t getPrevLowValue (){
+  return prevLowValue;
+}
+
+void setPrevLowValue (int lowValue) {
+  prevLowValue = lowValue;
+}
 
 /////////////////
 //   * BLEND  //
@@ -5276,9 +5307,9 @@ uint16_t WS2812FX::mode_blinkonbeat(void) {
 
 
 
-//////////////////////
-//beatwavefrommiddel//
-//////////////////////
+//////////////////////////
+//** beatwavefrommiddle//
+/////////////////////////
 
 uint16_t WS2812FX::mode_beatwavefrommiddel(void) {
   // beatwavefrommiddel. By Maxime Huylebroeck.
@@ -5317,7 +5348,7 @@ uint16_t WS2812FX::mode_beatwavefrommiddel(void) {
   }
 
   return FRAMETIME;
-} // beatwavefrommiddel()
+} // beatwavefrommiddle()
 
 
 //////////////////////
@@ -5348,3 +5379,188 @@ uint16_t WS2812FX::mode_energy(void) {
 
   return FRAMETIME;
 } // mode_energy()
+
+/////////////////////////////////
+//   ** BASS IN THE  MIDDLE   //
+////////////////////////////////
+
+uint16_t WS2812FX::mode_bassFromMiddle(void){                                                  // Bass in the Middle FFT by David Wilson
+uint8_t fadeHelper = SEGMENT.intensity;
+uint8_t nrRestLeds = SEGLEN/2 - closestNumber(SEGLEN/2,7);
+uint8_t partCount = ((SEGLEN/2)-nrRestLeds)/7;
+uint8_t samplePixCount = nrRestLeds+partCount;
+
+if (fadeHelper == 0){
+  fadeHelper = 1;
+}
+
+//change color every 5 seconds (only when other pallette than default selected)
+EVERY_N_SECONDS(5) {                       
+      oldPaletteColorIndex = paletteColorIndex;
+      paletteColorIndex = random8();
+}
+
+uint32_t color = color_from_palette(paletteColorIndex, false, PALETTE_SOLID_WRAP, 0);
+
+for (int i=0;i<=12;i++){
+  Serial.print(fftResult[i]); Serial.print("\t");
+}
+Serial.println();
+
+//First 7 bins (0-6) -> take the average of the lower frequencies (bass)
+int lowCalc = 0;
+
+for(byte i=0;i<=6;i++){
+  lowCalc= lowCalc + fftResult[i];
+}
+
+lowCalc = lowCalc / 7;
+
+// initial start and stop positions (middle section of the strip)
+int startRight = SEGLEN/2;
+int stopRight = (SEGLEN/2)+samplePixCount;
+int startLeft = SEGLEN/2;
+int stopLeft = (SEGLEN/2)-samplePixCount;
+
+//fill middle section with lowCalc (bass) brightness
+if (lowCalc > 0){
+  setRange(startRight, stopRight, color_blend(SEGCOLOR(1), color, lowCalc));
+  setRange(startLeft, stopLeft, color_blend(SEGCOLOR(1), color, lowCalc));
+}
+else {
+  fade2black_custom(startRight,stopRight,fadeHelper);
+  fade2black_custom(stopLeft,startLeft,fadeHelper) ; 
+}
+
+// start and stop positions for first part from middle section
+startRight = startRight + samplePixCount + 1;
+stopRight = stopRight + partCount;
+startLeft = startLeft - samplePixCount - 1;
+stopLeft = stopLeft - partCount;
+
+//Segment 2, bin 7
+if (fftResult[7]>0){
+  setRange(startRight, stopRight, color_blend(SEGCOLOR(1), color, fftResult[7]));
+  setRange(startLeft, stopLeft, color_blend(SEGCOLOR(1), color, fftResult[7]));
+}
+else {
+  fade2black_custom(startRight,stopRight,fadeHelper);
+  fade2black_custom(stopLeft,startLeft,fadeHelper) ; 
+}
+
+//do the rest of the segments
+for (uint8_t i=8; i<= 12;  i++ ){
+  startRight = startRight + partCount;
+  stopRight = stopRight + partCount;
+  startLeft = startLeft - partCount;
+  stopLeft = stopLeft - partCount;
+
+  if (fftResult[i]> 0){
+    setRange(startRight, stopRight, color_blend(SEGCOLOR(1), color, fftResult[i]));
+    setRange(startLeft, stopLeft, color_blend(SEGCOLOR(1), color, fftResult[i]));
+  }
+  else {
+    fade2black_custom(startRight,stopRight,fadeHelper);
+    fade2black_custom(stopLeft,startLeft,fadeHelper) ; 
+  }
+
+}
+ 
+  return FRAMETIME;
+ 
+} //mode_bassFromMiddle()
+
+///////////////////////
+//   ** ALL OVER    //             
+//////////////////////
+
+uint16_t WS2812FX::mode_allOver(void){                                                  // All Over FFT by David Wilson
+uint8_t fadeHelper = SEGMENT.intensity;
+uint8_t nrRestLeds = SEGLEN/2 - closestNumber(SEGLEN/2,7);
+uint8_t partCount = ((SEGLEN/2)-nrRestLeds)/7;
+uint8_t samplePixCount = nrRestLeds+partCount;
+
+if (fadeHelper == 0){
+  fadeHelper = 1;
+}
+
+//change color every 5 seconds (only when other pallette than default selected)
+EVERY_N_SECONDS(5) {                       
+      oldPaletteColorIndex = paletteColorIndex;
+      paletteColorIndex = random8();
+}
+
+uint32_t color = color_from_palette(paletteColorIndex, false, PALETTE_SOLID_WRAP, 0);
+
+for (int i=0;i<=12;i++){
+  Serial.print(fftResult[i]); Serial.print("\t");
+}
+Serial.println();
+
+//First 7 bins (0-6) -> take the average of the lower frequencies (bass)
+int lowCalc = 0;
+
+for(byte i=0;i<=6;i++){
+  lowCalc= lowCalc + fftResult[i];
+}
+
+lowCalc = lowCalc / 7;
+
+// initial start and stop positions (middle section of the strip)
+int startRight = SEGLEN/2;
+int stopRight = (SEGLEN/2)+samplePixCount;
+int startLeft = SEGLEN/2;
+int stopLeft = (SEGLEN/2)-samplePixCount;
+
+//fill middle section with lowCalc (bass) brightness
+if (lowCalc > 0){
+  setRange(0, SEGLEN, color_blend(SEGCOLOR(1), color, lowCalc));
+}
+else {
+  fade2black(fadeHelper);
+}
+
+// start and stop positions for first part from middle section
+startRight = startRight + samplePixCount + 1;
+stopRight = stopRight + partCount;
+startLeft = startLeft - samplePixCount - 1;
+stopLeft = stopLeft - partCount;
+
+//Segment 2, bin 7
+if (fftResult[7] > 0 && lowCalc > 0){
+  setRange(startRight, stopRight, color_blend(SEGCOLOR(1), color, fftResult[7]));
+  setRange(startLeft, stopLeft, color_blend(SEGCOLOR(1), color, fftResult[7]));
+} else if (lowCalc > 0 && fftResult[7] <= 0) {
+  setRange(startRight, stopRight, color_blend(SEGCOLOR(1), color, lowCalc));
+  setRange(startLeft, stopLeft, color_blend(SEGCOLOR(1), color, lowCalc)); 
+} else {
+    fade2black_custom(startRight, stopRight, fadeHelper);
+    fade2black_custom(stopLeft, startLeft, fadeHelper);
+  }
+
+//do the rest of the segments
+for (uint8_t i=8; i<= 12;  i++ ){
+  startRight = startRight + partCount;
+  stopRight = stopRight + partCount;
+  startLeft = startLeft - partCount;
+  stopLeft = stopLeft - partCount;
+
+  if (fftResult[i] > 0 && lowCalc > 0){
+    setRange(startRight, stopRight, color_blend(SEGCOLOR(1), color, fftResult[i]));
+    setRange(startLeft, stopLeft, color_blend(SEGCOLOR(1), color, fftResult[i]));
+  }
+  else if (lowCalc > 0 && fftResult[i] <= 0) {
+    setRange(startRight, stopRight, color_blend(SEGCOLOR(1), color, lowCalc));
+    setRange(startLeft, stopLeft, color_blend(SEGCOLOR(1), color, lowCalc)); 
+  }
+  else {
+    fade2black_custom(startRight, stopRight, fadeHelper);
+    fade2black_custom(stopLeft, startLeft, fadeHelper);
+  }
+
+}
+ 
+  return FRAMETIME;
+ 
+} //mode_bassFromMiddle()
+

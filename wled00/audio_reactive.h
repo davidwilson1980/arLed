@@ -8,7 +8,7 @@
 #include "wled.h"
 #include <driver/i2s.h>
 
-#define FFT_SAMPLING_LOG
+//#define FFT_SAMPLING_LOG
 //#define MIC_SAMPLING_LOG
 
 // The following 3 lines are for Digital Microphone support.
@@ -212,7 +212,7 @@ void agcAvg() {                                                     // A simple 
   // This is used for normalization of the result bins. It was created by sending the results of a signal generator to within 6" of a MAX9814 @ 40db gain.
   // This is the maximum raw results for each of the result bins and is used for normalization of the results.
   long maxChannel[] = {26000,  44000,  66000,  72000,  60000,  48000,  41000,  30000,  25000, 22000, 16000,  14000,  10000,  8000,  7000,  5000}; // Find maximum value for each bin with MAX9814 @ 40db gain.
-
+  int noise[] = {712,1000,1000,161,19,260,126,259,99,953,0,0,0,0,0,0};   //noise per bin is calculated by testing in a "silent" environment.
   float avgChannel[16];    // This is a smoothed rolling average value for each bin. Experimental for AGC testing.
 
   // Create FFT object
@@ -241,8 +241,8 @@ void agcAvg() {                                                     // A simple 
       for(int i=0; i<samples; i++) {
 
         if (digitalMic == false) {
-          micData = analogRead(MIC_PIN);                      // Analog Read
-          rawMicData = micData >> 2;                          // ESP32 has 12 bit ADC
+          micData = analogRead(MIC_PIN);                      // Analog Read, use absolute values
+          rawMicData = micData >> 2;                              // ESP32 has 12 bit ADC
         } else {
           int32_t digitalSample = 0;
           int bytes_read = i2s_pop_sample(I2S_PORT, (char *)&digitalSample, portMAX_DELAY); // no timeout
@@ -271,9 +271,10 @@ void agcAvg() {                                                     // A simple 
       // There could be interesting data at bins 0 to 2, but there are too many artifacts.
       //
       FFT.MajorPeak(&FFT_MajorPeak, &FFT_Magnitude);          // let the effects know which freq was most dominant
+    
       FFT.DCRemoval();
 
-      for (int i = 0; i < samples; i++) fftBin[i] = vReal[i]; // export FFT field
+      for (int i = 0; i < samples; i++) fftBin[i] = vReal[i]; // export FFT field, use absolute values
 
 // Andrew's updated mapping of 256 bins down to the 16 result bins with Sample Freq = 10240, samples = 512.
 // Based on testing, the lowest/Start frequency is 60 Hz (with bin 3) and a highest/End frequency of 5120 Hz in bin 255.
@@ -282,7 +283,7 @@ void agcAvg() {                                                     // A simple 
 // Multiplier = (End frequency/ Start frequency) ^ 1/16
 // Multiplier = 1.320367784
 
-//                                                Range      |  Freq | Max vol on MAX9814 @ 40db gain.
+//                                                Range      |  Freq | Max magnitude on MAX9814 @ 40db gain (seems incorrect)
       fftCalc[0] = (fftAdd(3,4)) /2;        // 60 - 100    -> 82Hz,  26000
       fftCalc[1] = (fftAdd(4,5)) /2;        // 80 - 120    -> 104Hz, 44000
       fftCalc[2] = (fftAdd(5,7)) /3;        // 100 - 160   -> 130Hz, 66000
@@ -301,10 +302,20 @@ void agcAvg() {                                                     // A simple 
       fftCalc[15] = (fftAdd(194, 255)) /62; // 3880 - 5120 -> 4500,  5000
 
       for(int i=0; i< 16; i++) {
-        //if(fftCalc[i]<0) fftCalc[i]=0;
-        avgChannel[i] = ((avgChannel[i] * 31) + fftCalc[i]) / 32;                         // Smoothing of each result bin. Experimental.
-        fftResult[i] = map(abs(fftCalc[i]), 0,  maxChannel[i], 0, 255);     // Map result bin to 8 bits.
-      //fftResult[i] = constrain(map(fftResult[i], 0,  avgChannel[i]*2, 0, 255),0,255);     // AGC map result bin to 8 bits. Can be noisy at low volumes. Experimental.
+        fftCalc[i] = fftCalc[i] - noise[i];
+        if (fftCalc[i] < 0) fftCalc[i] = 0;
+      //  fftCalc[i] = constrain(fftCalc[i],0,maxChannel[i]);
+      //  Serial.print("fftCalc: ");Serial.println(fftCalc[i]);
+      //
+      
+        uint8_t tempFftCalc = fftCalc[i];
+        uint8_t tempMaxCh = maxChannel[i];
+        tempFftCalc = constrain(tempFftCalc, 0, tempMaxCh);
+        fftCalc[i] = map(tempFftCalc,0,tempMaxCh,0,255);
+        avgChannel[i] = ((avgChannel[i] * 31) + fftCalc[i]) / 32;                           // Smoothing of each result bin. Experimental.
+        //fftCalc[i] = map(fftCalc[i], 0,  maxChannel[i], 0, 255);      
+                            
+        fftResult[i] = fftCalc[i];                                                                        
 
       }
     }
