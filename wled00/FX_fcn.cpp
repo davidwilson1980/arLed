@@ -666,6 +666,34 @@ void WS2812FX::fade2black(uint8_t rate) {
 }
 
 /*
+ * fade out function with custom start, end pixel. higher rate = quicker fade
+ */
+
+void WS2812FX::fade2black_custom(int startPos, int endPos, uint8_t rate) {
+  uint32_t color;
+  
+  //rate = rate >> 1;
+  float mappedRate = (float) map(rate, 0, 255, 1, 100) ;
+
+  mappedRate = mappedRate / 100;
+  
+  for(uint16_t i = startPos; i <= endPos; i++) {
+    color = getPixelColor(i);
+    int w1 = (color >> 24) & 0xff;
+    int r1 = (color >> 16) & 0xff;
+    int g1 = (color >>  8) & 0xff;
+    int b1 =  color        & 0xff;
+
+    int w = w1 * mappedRate;
+    int r = r1 * (mappedRate * 1.05);      // acount for the fact that leds stay red on much lower intensities
+    int g = g1 * mappedRate;
+    int b = b1 * mappedRate;
+    
+    setPixelColor(i, r, g, b, w);
+  }
+}
+
+/*
  * fade out function, higher rate = quicker fade
  */
 void WS2812FX::fade_out(uint8_t rate) {
@@ -679,6 +707,42 @@ void WS2812FX::fade_out(uint8_t rate) {
   int b2 =  color        & 0xff;
 
   for(uint16_t i = 0; i < SEGLEN; i++) {
+    color = getPixelColor(i);
+    int w1 = (color >> 24) & 0xff;
+    int r1 = (color >> 16) & 0xff;
+    int g1 = (color >>  8) & 0xff;
+    int b1 =  color        & 0xff;
+
+    int wdelta = (w2 - w1) / mappedRate;
+    int rdelta = (r2 - r1) / mappedRate;
+    int gdelta = (g2 - g1) / mappedRate;
+    int bdelta = (b2 - b1) / mappedRate;
+
+    // if fade isn't complete, make sure delta is at least 1 (fixes rounding issues)
+    wdelta += (w2 == w1) ? 0 : (w2 > w1) ? 1 : -1;
+    rdelta += (r2 == r1) ? 0 : (r2 > r1) ? 1 : -1;
+    gdelta += (g2 == g1) ? 0 : (g2 > g1) ? 1 : -1;
+    bdelta += (b2 == b1) ? 0 : (b2 > b1) ? 1 : -1;
+
+    setPixelColor(i, r1 + rdelta, g1 + gdelta, b1 + bdelta, w1 + wdelta);
+  }
+}
+
+/*
+ * fade out function with custom start, stop pixel. higher rate = quicker fade
+ */
+
+void WS2812FX::fade_out_custom(int startPos, int endPos, uint8_t rate) {
+  rate = (255-rate) >> 1;
+  float mappedRate = float(rate) +1.1;
+
+  uint32_t color = SEGCOLOR(1); // target color
+  int w2 = (color >> 24) & 0xff;
+  int r2 = (color >> 16) & 0xff;
+  int g2 = (color >>  8) & 0xff;
+  int b2 =  color        & 0xff;
+
+  for(uint16_t i = startPos; i <= endPos; i++) {
     color = getPixelColor(i);
     int w1 = (color >> 24) & 0xff;
     int r1 = (color >> 16) & 0xff;
